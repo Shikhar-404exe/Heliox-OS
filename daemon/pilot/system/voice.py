@@ -34,6 +34,21 @@ async def speak(
     On Linux: uses espeak or piper
     On macOS: uses 'say' command
     """
+    # ── Feature 1: Cognitive Load TTS Speed Modulation ──
+    try:
+        from pilot.cognitive.tribe_engine import TribeEngine
+
+        tribe = TribeEngine.get_instance()
+        if tribe.is_loaded and hasattr(tribe, "_last_cognitive_load"):
+            cog_load = tribe._last_cognitive_load
+            if cog_load > 0.6:
+                # Slow down speech as cognitive load heavily spikes
+                reduction = int((cog_load - 0.5) * 80)
+                rate = max(100, rate - reduction)
+                logger.info(f"Modulating voice rate to {rate} due to cognitive load {cog_load:.2f}")
+    except Exception as e:
+        logger.debug(f"Failed to modulate TTS rate by cognitive load: {e}")
+
     if CURRENT_PLATFORM == Platform.WINDOWS:
         return await _tts_windows(text, voice, rate, volume, output_file)
     elif CURRENT_PLATFORM == Platform.MACOS:

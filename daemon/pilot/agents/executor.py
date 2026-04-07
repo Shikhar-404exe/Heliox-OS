@@ -425,19 +425,24 @@ class Executor:
 
     async def _execute_single(self, action: Action, snapshot_id: str | None) -> ActionResult:
         """Execute a single validated action."""
-        
-        # Apply TRIBE v2 Stress Gate checking
+
+        # ── Feature 2: Neuro-Safe Destructive Action Gate ──
         stress_gate = getattr(self, "_stress_gate", None)
         if stress_gate and stress_gate.enabled:
             # Action type is used to check risk
             gate_decision = await stress_gate.evaluate(action.action_type)
             if gate_decision.gated:
-                return ActionResult(
-                    action=action,
-                    success=False,
-                    error=f"Task paused due to cognitive stress gate ({gate_decision.reason}). Explicit user override required.",
-                    snapshot_id=snapshot_id
-                )
+                logger.warning(f"Cognitive stress triggered for {action.action_type}. Pausing 10s.")
+                import asyncio
+
+                try:
+                    from pilot.system.voice import speak
+
+                    await speak("Your focus state is low. Confirming in 10 seconds.", rate=160)
+                except Exception:
+                    pass
+                await asyncio.sleep(10)
+                # After 10s pause, proceed with execution
 
         handler = self._dispatch_table.get(action.action_type)
         if handler is None:

@@ -435,42 +435,44 @@ class MultimodalFusionEngine:
 
         return intent
 
-    async def _apply_cognitive_intent(self, intent: FusedIntent, voice: InputEvent | None, gesture: InputEvent | None) -> FusedIntent:
+    async def _apply_cognitive_intent(
+        self, intent: FusedIntent, voice: InputEvent | None, gesture: InputEvent | None
+    ) -> FusedIntent:
         """Apply TRIBE v2 neural disambiguation to evaluate best candidate intent."""
         predictor = getattr(self, "_intent_predictor", None)
         if not predictor or not predictor.enabled:
             return intent
-            
+
         v_text = voice.transcript if voice else ""
         v_conf = voice.voice_confidence if voice else 0.0
         g_name = gesture.gesture_name if gesture else ""
         g_conf = gesture.gesture_confidence if gesture else 0.0
-        
+
         # Build candidate commands list starting with our template-resolved default
         cands = [intent.command]
         if hasattr(predictor, "_generate_candidates"):
             cands.extend(predictor._generate_candidates(v_text, g_name))
-        
+
         # Deduplicate while preserving order
         cands = list(dict.fromkeys(cands))
-        
+
         res = await predictor.predict_best_intent(
             voice_transcript=v_text,
             gesture_name=g_name,
             gesture_confidence=g_conf,
             voice_confidence=v_conf,
-            candidate_commands=cands
+            candidate_commands=cands,
         )
-        
+
         # Override intent with predicted best command
         intent.command = res.selected_command
         if res.candidates:
             intent.confidence = max(intent.confidence, res.candidates[0].boosted_confidence)
-            
+
         if res.disambiguation_used:
             intent.metadata["tribe_disambiguated"] = True
             intent.metadata["tribe_boost"] = res.confidence_boost
-            
+
         return intent
 
     # ── Stats ──

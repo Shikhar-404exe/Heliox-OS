@@ -160,9 +160,10 @@ class TribeEngine:
 
                 def _load():
                     """Download via huggingface_hub then load from local."""
-                    from huggingface_hub import hf_hub_download
                     import pathlib
                     import platform
+
+                    from huggingface_hub import hf_hub_download
 
                     # Fix: torch.load on Windows fails when checkpoint was
                     # saved on Linux with PosixPath objects. Monkey-patch
@@ -176,6 +177,7 @@ class TribeEngine:
 
                     # Load from the local directory containing both files
                     import os
+
                     local_dir = os.path.dirname(config_path)
                     model = _TribeModel.from_pretrained(
                         local_dir,
@@ -190,6 +192,7 @@ class TribeEngine:
                     # hidden_size=3072, zero quality degradation).
                     _UNGATED_LLAMA = "unsloth/Llama-3.2-3B"
                     import torch as _torch
+
                     _device = "cuda" if _torch.cuda.is_available() else "cpu"
 
                     try:
@@ -199,7 +202,8 @@ class TribeEngine:
                             if "meta-llama" in old_name:
                                 logger.info(
                                     "Patching text extractor: %s → %s (ungated)",
-                                    old_name, _UNGATED_LLAMA,
+                                    old_name,
+                                    _UNGATED_LLAMA,
                                 )
                                 text_ext.model_name = _UNGATED_LLAMA
                             text_ext.device = _device
@@ -354,33 +358,37 @@ class TribeEngine:
                     if not clean_word:
                         char_pos += len(word) + 1
                         continue
-                    events.append({
-                        "type": "Word",
-                        "text": clean_word,
-                        "context": full_text,
-                        "sentence": full_text,
-                        "sentence_char": char_pos,
-                        "start": t,
-                        "duration": word_duration,
-                        "timeline": "default",
-                        "subject": "default",
-                    })
+                    events.append(
+                        {
+                            "type": "Word",
+                            "text": clean_word,
+                            "context": full_text,
+                            "sentence": full_text,
+                            "sentence_char": char_pos,
+                            "start": t,
+                            "duration": word_duration,
+                            "timeline": "default",
+                            "subject": "default",
+                        }
+                    )
                     t += word_duration
                     char_pos += len(word) + 1
 
                 # Add a dummy Fixation event to ensure the dataset has >1 class.
                 # This resolves the neuralset LabelEncoder UserWarning.
-                events.append({
-                    "type": "Fixation",
-                    "text": "",
-                    "context": full_text,
-                    "sentence": full_text,
-                    "sentence_char": char_pos,
-                    "start": t,
-                    "duration": 0.1,
-                    "timeline": "default",
-                    "subject": "default",
-                })
+                events.append(
+                    {
+                        "type": "Fixation",
+                        "text": "",
+                        "context": full_text,
+                        "sentence": full_text,
+                        "sentence_char": char_pos,
+                        "start": t,
+                        "duration": 0.1,
+                        "timeline": "default",
+                        "subject": "default",
+                    }
+                )
 
                 events_df = pd.DataFrame(events)
 
@@ -395,14 +403,15 @@ class TribeEngine:
 
                 return mean_activation, max_activation, std_activation, n_vertices
 
-            mean_act, max_act, std_act, n_verts = await loop.run_in_executor(
-                None, _run_prediction
-            )
+            mean_act, max_act, std_act, n_verts = await loop.run_in_executor(None, _run_prediction)
 
             # Map brain activations to cognitive metrics
             attention = min(1.0, mean_act * 2.5)
             stress = min(1.0, max_act * 0.8)
             load = min(1.0, (mean_act + max_act) / 4.0)
+
+            # Save for global ambient TTS modulation access
+            self._last_cognitive_load = load
 
             return CognitiveSnapshot(
                 attention_score=attention,

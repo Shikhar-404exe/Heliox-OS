@@ -208,10 +208,10 @@ class PilotServer:
 
         # ── Cognitive Intelligence (TRIBE v2) ──
         try:
-            from pilot.cognitive.tribe_engine import TribeEngine
             from pilot.cognitive.attention_scorer import AttentionAwareUI
-            from pilot.cognitive.stress_gate import StressGate
             from pilot.cognitive.intent_predictor import IntentPredictor
+            from pilot.cognitive.stress_gate import StressGate
+            from pilot.cognitive.tribe_engine import TribeEngine
 
             self._tribe_engine = TribeEngine.get_instance()
             self._attention_ui = AttentionAwareUI(self._tribe_engine)
@@ -224,6 +224,8 @@ class PilotServer:
                 self._executor._stress_gate = self._stress_gate
             if self._fusion:
                 self._fusion._intent_predictor = self._intent_predictor
+            if getattr(self, "_screen_vision", None):
+                self._screen_vision._tribe_engine = self._tribe_engine
 
             # Attempt background model load (non-blocking)
             asyncio.create_task(self._tribe_engine.load_model())
@@ -233,6 +235,8 @@ class PilotServer:
             )
         except Exception:
             logger.warning("Cognitive intelligence init failed (non-critical)", exc_info=True)
+
+        self._notification_buffer: list[tuple[str, dict[str, Any]]] = []
 
         self._handlers = {
             "execute": self._handle_execute,
@@ -297,21 +301,44 @@ class PilotServer:
 
     async def _broadcast_notification(self, method: str, params: Any) -> None:
         """Broadcast a notification to all connected clients."""
-        
-        # Apply Attention-Aware UI filtering/scoring
+
+        # ── Feature 5: Attention-Optimized Notification Timing ──
         if getattr(self, "_attention_ui", None) and self._attention_ui.enabled:
             try:
                 content = params if isinstance(params, dict) else {"data": params}
                 scored = await self._attention_ui.score_event(method, content)
-                if not scored.should_display:
+
+                # Buffer non-critical notifications when user is highly focused
+                if not scored.should_display and scored.priority.value != "critical":
+                    if not hasattr(self, "_notification_buffer"):
+                        self._notification_buffer = []
+                    self._notification_buffer.append((method, params.copy() if isinstance(params, dict) else params))
                     return
+
+                # Flush buffer during 'cortical transition' moments (low activation)
+                if scored.attention_score < 0.4 and getattr(self, "_notification_buffer", []):
+                    logger.info(
+                        f"Flushing {len(self._notification_buffer)} buffered notifications during low cognitive load."
+                    )
+                    for b_meth, b_params in self._notification_buffer:
+                        if isinstance(b_params, dict):
+                            b_params.setdefault("_cognitive", {})["should_animate"] = False
+                            b_params["_cognitive"]["flushed"] = True
+                        msg = _notification(b_meth, b_params)
+                        for client in list(self._clients):
+                            try:
+                                await client.send(msg)
+                            except Exception:
+                                pass
+                    self._notification_buffer.clear()
+
                 # Embed cognitive hints directly into outgoing parameters
                 if isinstance(params, dict):
                     params["_cognitive"] = {
                         "priority": scored.priority,
                         "attention_score": scored.attention_score,
                         "should_animate": scored.should_animate,
-                        "display_duration_ms": scored.display_duration_ms
+                        "display_duration_ms": scored.display_duration_ms,
                     }
             except Exception as e:
                 logger.error("Attention scoring failed: %s", e)
@@ -1187,9 +1214,7 @@ class PilotServer:
             "tribe_engine": self._tribe_engine.get_stats() if self._tribe_engine else None,
             "attention_ui": self._attention_ui.get_stats() if self._attention_ui else None,
             "stress_gate": self._stress_gate.get_stats() if self._stress_gate else None,
-            "intent_predictor": (
-                self._intent_predictor.get_stats() if self._intent_predictor else None
-            ),
+            "intent_predictor": (self._intent_predictor.get_stats() if self._intent_predictor else None),
         }
 
     async def _handle_cognitive_state(self, params: dict, ws: ServerConnection) -> dict:
@@ -1215,18 +1240,14 @@ class PilotServer:
         enabled = self._stress_gate.toggle(params.get("enabled"))
         return {"enabled": enabled}
 
-    async def _handle_intent_predictor_toggle(
-        self, params: dict, ws: ServerConnection
-    ) -> dict:
+    async def _handle_intent_predictor_toggle(self, params: dict, ws: ServerConnection) -> dict:
         """Toggle JARVIS mode intent prediction."""
         if not self._intent_predictor:
             return {"error": "Intent predictor not initialized"}
         enabled = self._intent_predictor.toggle(params.get("enabled"))
         return {"enabled": enabled}
 
-    async def _handle_tribe_model_toggle(
-        self, params: dict, ws: ServerConnection
-    ) -> dict:
+    async def _handle_tribe_model_toggle(self, params: dict, ws: ServerConnection) -> dict:
         """Load or unload the TRIBE v2 model."""
         if not self._tribe_engine:
             return {"error": "TRIBE engine not initialized"}

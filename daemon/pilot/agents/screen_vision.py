@@ -50,6 +50,8 @@ class ScreenState:
     changed_from_last: bool = False
     description: str = ""
     screenshot_path: str = ""
+    brain_load: float = 0.0
+    neural_saliency: list[float] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -58,6 +60,8 @@ class ScreenState:
             "active_window_title": self.active_window_title,
             "changed": self.changed_from_last,
             "description": self.description,
+            "brain_load": self.brain_load,
+            "neural_saliency": self.neural_saliency,
         }
 
 
@@ -184,6 +188,21 @@ class ScreenVisionAgent:
         # Optional: use LLM to describe what's on screen
         if self._enable_llm_describe and changed and self._model:
             state.description = await self._describe_screen(state)
+
+        # ── Feature 1 & 7: Neural Cognitive Load + Saliency Overlay ──
+        tribe_engine = getattr(self, "_tribe_engine", None)
+        if tribe_engine and tribe_engine.is_loaded:
+            stimulus = f"Visual focus on {app}: {title}"
+            if state.description:
+                stimulus += f" - {state.description}"
+            # Fetch load and saliency map
+            cog_state = await tribe_engine.predict_cognitive_state(stimulus)
+            state.brain_load = cog_state.cognitive_load
+            # Generate a 2D uniform saliency heatmap representing ventral stream activation
+            # (Mocked to a simple distribution for UI arc reactor integration)
+            if hasattr(cog_state, "raw_activations"):
+                mean_act = cog_state.raw_activations.get("mean", 0.5)
+                state.neural_saliency = [mean_act] * 16
 
         return state
 

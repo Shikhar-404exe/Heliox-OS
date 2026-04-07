@@ -61,3 +61,6 @@ src-tauri/target/
 # Frontend build
 ui/dist/
 ui/build/
+
+daemon/neuralset*
+daemon/tribev2*

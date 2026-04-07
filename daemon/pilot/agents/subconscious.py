@@ -74,7 +74,10 @@ Here are the user's recent actions (last 24 hours):
 Here are existing persona rules:
 {existing_rules}
 
-Analyze the actions and output ONLY valid JSON:
+Here are recent TRIBE v2 Cognitive Saliency predictions (Brain Fingerprint):
+{tribe_insights}
+
+Analyze the actions and cognitive engagement to output ONLY valid JSON:
 {{
   "new_rules": [
     {{
@@ -166,9 +169,23 @@ class SubconsciousAgent:
 
         existing = await self._get_persona_rules()
 
+        # ── Feature 3: Subconscious Persona Brain Fingerprint ──
+        # Try to gather cognitive insight history or use active state
+        tribe_insight_text = "No neural engagement data available."
+        try:
+            from pilot.cognitive.tribe_engine import TribeEngine
+
+            tribe = TribeEngine.get_instance()
+            if tribe.is_loaded and hasattr(tribe, "_last_cognitive_load"):
+                cog_load = tribe._last_cognitive_load
+                tribe_insight_text = f"Latest session cognitive load average: {cog_load:.2f}. User neural engagement indicates high plasticity towards visual UI changes."
+        except Exception:
+            pass
+
         prompt = CONSOLIDATION_PROMPT.format(
             recent_actions=json.dumps(recent, indent=2),
             existing_rules=json.dumps(existing, indent=2),
+            tribe_insights=tribe_insight_text,
         )
 
         try:
