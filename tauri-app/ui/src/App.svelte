@@ -12,6 +12,7 @@
   import ParticleBurst from "./lib/components/ParticleBurst.svelte";
   import ExecutionGraph from "./lib/components/ExecutionGraph.svelte";
   import ReActPipeline from "./lib/components/ReActPipeline.svelte";
+  import PluginsTab from "./lib/components/PluginsTab.svelte";
   import { session } from "./lib/stores/session";
   import type { Message } from "./lib/stores/session";
   import { settings } from "./lib/stores/settings";
@@ -19,7 +20,7 @@
   import { writeText } from "@tauri-apps/plugin-clipboard-manager";
   import { Copy } from "lucide-svelte";
 
-  let activeTab: "chat" | "log" | "settings" = $state("chat");
+  let activeTab: "chat" | "log" | "settings" | "plugins" = $state("chat");
   let isDragging = $state(false);
   let showWizard = $derived(
     !$settings.first_run_complete && localStorage.getItem("heliox_first_run_complete") !== "true"
@@ -179,6 +180,7 @@
     <nav class="tabs">
       <button class="tab" class:active={activeTab === "chat"} title="Open Command Panel" onclick={() => activeTab = "chat"}>Command</button>
       <button class="tab" class:active={activeTab === "log"} title="Open activity log" onclick={() => activeTab = "log"}>Activity</button>
+      <button class="tab" class:active={activeTab === "plugins"} title="Browse plugin marketplace" onclick={() => activeTab = "plugins"}>Plugins</button>
       <button class="tab" class:active={activeTab === "settings"} title="Open Settings" onclick={() => activeTab = "settings"}>Settings</button>
     </nav>
     <div class="titlebar-right">
@@ -245,6 +247,8 @@
       </div>
     {:else if activeTab === "log"}
       <ActivityLog />
+    {:else if activeTab === "plugins"}
+      <PluginsTab />
     {:else}
       <SettingsPanel />
     {/if}
