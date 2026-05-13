@@ -115,14 +115,14 @@ class TribeEngine:
         self._max_history = 100
 
     @classmethod
-    async def get_instance_async(cls) -> "TribeEngine":
+    async def get_instance_async(cls) -> TribeEngine:
         async with cls._init_lock:
             if cls._instance is None:
                 cls._instance = cls()
             return cls._instance
 
     @classmethod
-    def get_instance(cls) -> "TribeEngine":
+    def get_instance(cls) -> TribeEngine:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
