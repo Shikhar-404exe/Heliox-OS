@@ -52,34 +52,71 @@ class ModelRouter:
         system: str = "",
         json_mode: bool = False,
         temperature: float = 0.1,
+        stream_callback: callable | None = None,
     ) -> str:
         """Generate a completion from the best available model.
 
+        If stream_callback is provided, tokens will be streamed via the callback
+        instead of waiting for the full response.
+
         Flow:
         1. Determine model and provider
-        2. Check cache for exact match
+        2. Check cache for exact match (skip cache if streaming)
         3. On cache miss, acquire rate limit token
         4. Call backend (cloud or local)
-        5. Store successful response in cache
+        5. Store successful response in cache (skip if streaming)
         """
-        # Determine which backend and model we'll use, and check cache
         provider = self._config.model.provider
         model: str | None = None
         response: str | None = None
 
-        # Try cloud backend first if configured
-        if provider == "cloud" and self._cloud:
-            model = self._config.model.cloud_model or "unknown"
-            response = await self._cache.get(prompt, model, provider, temperature, json_mode, system)
-            if response is not None:
-                return response
+        # Skip cache when streaming - can't cache partial tokens
+        if not stream_callback:
+            # Try cloud backend first if configured
+            if provider == "cloud" and self._cloud:
+                model = self._config.model.cloud_model or "unknown"
+                response = await self._cache.get(prompt, model, provider, temperature, json_mode, system)
+                if response is not None:
+                    return response
 
+            # Try ollama or local backend
+            if provider in ("ollama", "local"):
+                if await self._ollama.is_available():
+                    model = await self._resolve_ollama_model()
+                    response = await self._cache.get(prompt, model, provider, temperature, json_mode, system)
+                    if response is not None:
+                        return response
+
+                if self._try_llamacpp():
+                    model = "llamacpp"
+                    response = await self._cache.get(prompt, model, provider, temperature, json_mode, system)
+                    if response is not None:
+                        return response
+
+            # Fallback: try ollama if not already tried
+            if provider != "ollama" and await self._ollama.is_available():
+                model = await self._resolve_ollama_model()
+                response = await self._cache.get(prompt, model, "ollama", temperature, json_mode, system)
+                if response is not None:
+                    return response
+
+            # Final fallback: cloud API
+            if self._cloud and provider not in ("ollama", "local"):
+                model = self._config.model.cloud_model or "unknown"
+                response = await self._cache.get(prompt, model, "cloud", temperature, json_mode, system)
+                if response is not None:
+                    return response
+
+        # Now do the actual generation with rate limiting
+        await self._rate_limiter.acquire()
+
+        if provider == "cloud" and self._cloud:
             try:
-                await self._rate_limiter.acquire()
                 response = await self._cloud.generate(
-                    prompt, system=system, json_mode=json_mode, temperature=temperature
+                    prompt, system=system, json_mode=json_mode, temperature=temperature, stream_callback=stream_callback
                 )
-                await self._cache.set(prompt, model, provider, temperature, json_mode, response, system)
+                if not stream_callback and model:
+                    await self._cache.set(prompt, model, provider, temperature, json_mode, response, system)
                 return response
             except Exception as e:
                 logger.error("Cloud API failed: %s", e)
@@ -89,61 +126,39 @@ class ModelRouter:
         if provider in ("ollama", "local"):
             if await self._ollama.is_available():
                 model = await self._resolve_ollama_model()
-                response = await self._cache.get(prompt, model, provider, temperature, json_mode, system)
-                if response is not None:
-                    return response
-
-                await self._rate_limiter.acquire()
                 response = await self._ollama.generate(
-                    model,
-                    prompt,
-                    system=system,
-                    json_mode=json_mode,
-                    temperature=temperature,
+                    model, prompt, system=system, json_mode=json_mode, temperature=temperature, stream_callback=stream_callback
                 )
-                await self._cache.set(prompt, model, provider, temperature, json_mode, response, system)
+                if not stream_callback and model:
+                    await self._cache.set(prompt, model, provider, temperature, json_mode, response, system)
                 return response
 
             if self._try_llamacpp():
-                model = "llamacpp"  # Use generic name for llamacpp
-                response = await self._cache.get(prompt, model, provider, temperature, json_mode, system)
-                if response is not None:
-                    return response
-
-                await self._rate_limiter.acquire()
+                model = "llamacpp"
                 response = await self._llamacpp_generate(prompt, system=system, temperature=temperature)
-                await self._cache.set(prompt, model, provider, temperature, json_mode, response, system)
+                if not stream_callback and model:
+                    await self._cache.set(prompt, model, provider, temperature, json_mode, response, system)
                 return response
 
         # Fallback: try ollama if not already tried
         if provider != "ollama" and await self._ollama.is_available():
             model = await self._resolve_ollama_model()
-            response = await self._cache.get(prompt, model, "ollama", temperature, json_mode, system)
-            if response is not None:
-                return response
-
-            await self._rate_limiter.acquire()
             response = await self._ollama.generate(
-                model,
-                prompt,
-                system=system,
-                json_mode=json_mode,
-                temperature=temperature,
+                model, prompt, system=system, json_mode=json_mode, temperature=temperature, stream_callback=stream_callback
             )
-            await self._cache.set(prompt, model, "ollama", temperature, json_mode, response, system)
+            if not stream_callback and model:
+                await self._cache.set(prompt, model, "ollama", temperature, json_mode, response, system)
             return response
 
         # Final fallback: cloud API
         if self._cloud:
             model = self._config.model.cloud_model or "unknown"
-            response = await self._cache.get(prompt, model, "cloud", temperature, json_mode, system)
-            if response is not None:
-                return response
-
             logger.warning("Falling back to cloud API — Ollama unavailable")
-            await self._rate_limiter.acquire()
-            response = await self._cloud.generate(prompt, system=system, json_mode=json_mode, temperature=temperature)
-            await self._cache.set(prompt, model, "cloud", temperature, json_mode, response, system)
+            response = await self._cloud.generate(
+                prompt, system=system, json_mode=json_mode, temperature=temperature, stream_callback=stream_callback
+            )
+            if not stream_callback and model:
+                await self._cache.set(prompt, model, "cloud", temperature, json_mode, response, system)
             return response
 
         raise RuntimeError("No model backend available. Start Ollama or configure a cloud API key.")

@@ -613,7 +613,16 @@ class PilotServer:
                 except Exception:
                     pass
 
-            plan = await self._planner.plan(user_input, error_context=error_context, screen_context=_screen_ctx)
+            # Create token stream callback for real-time LLM response streaming
+            async def stream_token(token: str) -> None:
+                await ws.send(_notification("token_stream", {"token": token}))
+
+            # Only enable streaming on the first attempt (not on retries)
+            stream_callback = stream_token if attempt == 0 else None
+
+            plan = await self._planner.plan(
+                user_input, error_context=error_context, screen_context=_screen_ctx, stream_callback=stream_callback
+            )
             if plan.error:
                 if emit:
                     await emit.phase_error("planning", PLANNER_ERROR, plan.error, parent_id=plan_phase)
