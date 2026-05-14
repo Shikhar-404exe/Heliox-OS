@@ -45,14 +45,27 @@ class ModelRouter:
         system: str = "",
         json_mode: bool = False,
         temperature: float = 0.1,
+        stream_callback: callable | None = None,
     ) -> str:
-        """Generate a completion from the best available model."""
+        """Generate a completion from the best available model.
+
+        If stream_callback is provided, tokens will be streamed via the callback
+        instead of waiting for the full response.
+        """
         await self._rate_limiter.acquire()
         provider = self._config.model.provider
 
+        streaming = stream_callback is not None
+
         if provider == "cloud" and self._cloud:
             try:
-                return await self._cloud.generate(prompt, system=system, json_mode=json_mode, temperature=temperature)
+                return await self._cloud.generate(
+                    prompt,
+                    system=system,
+                    json_mode=json_mode,
+                    temperature=temperature,
+                    stream_callback=stream_callback,
+                )
             except Exception as e:
                 logger.error("Cloud API failed: %s", e)
                 raise RuntimeError(f"Cloud API Failed: {e}")
@@ -66,6 +79,7 @@ class ModelRouter:
                     system=system,
                     json_mode=json_mode,
                     temperature=temperature,
+                    stream_callback=stream_callback,
                 )
 
             if self._try_llamacpp():
@@ -79,11 +93,18 @@ class ModelRouter:
                 system=system,
                 json_mode=json_mode,
                 temperature=temperature,
+                stream_callback=stream_callback,
             )
 
         if self._cloud:
             logger.warning("Falling back to cloud API — Ollama unavailable")
-            return await self._cloud.generate(prompt, system=system, json_mode=json_mode, temperature=temperature)
+            return await self._cloud.generate(
+                prompt,
+                system=system,
+                json_mode=json_mode,
+                temperature=temperature,
+                stream_callback=stream_callback,
+            )
 
         raise RuntimeError("No model backend available. Start Ollama or configure a cloud API key.")
 

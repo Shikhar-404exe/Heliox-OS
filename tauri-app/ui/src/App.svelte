@@ -226,15 +226,25 @@
             {#if $session.loading}
               <ExecutionGraph />
               
-              <div class="message system">
-                <div class="msg-header">
-                  <span class="msg-label">HELIOX</span>
-                  <span class="phase-badge">{$session.phase || "thinking"}</span>
+              {#if $session.streamingText}
+                <div class="message system streaming">
+                  <div class="msg-header">
+                    <span class="msg-label">HELIOX</span>
+                    <span class="phase-badge">streaming</span>
+                  </div>
+                  <span class="msg-text">{$session.streamingText}</span>
                 </div>
-                <span class="msg-text loading-dots">
-                  {$session.phase ? `${$session.phase}` : "Thinking"}
-                </span>
-              </div>
+              {:else}
+                <div class="message system">
+                  <div class="msg-header">
+                    <span class="msg-label">HELIOX</span>
+                    <span class="phase-badge">{$session.phase || "thinking"}</span>
+                  </div>
+                  <span class="msg-text loading-dots">
+                    {$session.phase ? `${$session.phase}` : "Thinking"}
+                  </span>
+                </div>
+              {/if}
             {/if}
           {/if}
         </div>
@@ -685,6 +695,18 @@
   }
 
   .error-msg .msg-label { color: var(--danger); }
+
+  /* Streaming messages */
+  .message.system.streaming {
+    background: var(--bg-tertiary);
+    border-left: 3px solid var(--accent);
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { border-left-color: var(--accent); }
+    50% { border-left-color: var(--accent-hover); }
+  }
 
   /* Plan messages */
   .plan-msg {

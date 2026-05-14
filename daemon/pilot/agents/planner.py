@@ -399,8 +399,17 @@ class Planner:
 
         return None  # Not a simple command — use LLM
 
-    async def plan(self, user_input: str, error_context: str = "", screen_context: str = "") -> ActionPlan:
-        """Generate an action plan from a natural language request."""
+    async def plan(
+        self,
+        user_input: str,
+        error_context: str = "",
+        screen_context: str = "",
+        stream_callback: callable | None = None,
+    ) -> ActionPlan:
+        """Generate an action plan from a natural language request.
+
+        If stream_callback is provided, LLM tokens will be streamed via callback.
+        """
         try:
             # Fast-path: skip LLM for simple, pattern-matchable commands
             if not error_context:
@@ -427,7 +436,7 @@ class Planner:
                 )
 
             raw_response = await self._model.generate(
-                prompt, system=self._system_prompt, json_mode=True, temperature=0.1
+                prompt, system=self._system_prompt, json_mode=True, temperature=0.1, stream_callback=stream_callback
             )
 
             return self._parse_response(raw_response, user_input)
