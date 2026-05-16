@@ -7,6 +7,7 @@ Now cross-platform with 50+ action types covering full system control.
 """
 
 from __future__ import annotations
+
 import asyncio
 import logging
 import typing
