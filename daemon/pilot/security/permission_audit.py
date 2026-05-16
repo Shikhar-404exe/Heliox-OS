@@ -218,9 +218,7 @@ class PermissionEscalationAuditStore:
                     "destructive": bool(destructive),
                     "confirmation_decision": confirmation_decision,
                     "critic_verdict": json.loads(critic_verdict),
-                    "execution_success": None
-                    if execution_success is None
-                    else bool(execution_success),
+                    "execution_success": None if execution_success is None else bool(execution_success),
                     "execution_error": execution_error,
                     "previous_hmac": previous_hmac,
                 }
