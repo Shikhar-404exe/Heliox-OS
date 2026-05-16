@@ -89,7 +89,9 @@ class DockerBackend(_SandboxBackend):
 
         # Robust creation of temporary script files with graceful fallbacks
         try:
-            with tempfile.NamedTemporaryFile(mode="w", suffix=ext, delete=False, encoding="utf-8", prefix="pilot_sb_") as f:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=ext, delete=False, encoding="utf-8", prefix="pilot_sb_"
+            ) as f:
                 if lang == "bash":
                     f.write("#!/bin/bash\nset -e\n" + code)
                 else:
@@ -224,7 +226,9 @@ class RestrictedBackend(_SandboxBackend):
     async def _run_python(self, code: str, config: SandboxConfig, env: dict[str, str]) -> str:
         script_path = None
         try:
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8", prefix="pilot_sb_") as f:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".py", delete=False, encoding="utf-8", prefix="pilot_sb_"
+            ) as f:
                 f.write(code)
                 script_path = f.name
         except (PermissionError, OSError) as exc:
@@ -241,7 +245,9 @@ class RestrictedBackend(_SandboxBackend):
     async def _run_bash(self, code: str, config: SandboxConfig, env: dict[str, str]) -> str:
         script_path = None
         try:
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False, encoding="utf-8", prefix="pilot_sb_") as f:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".sh", delete=False, encoding="utf-8", prefix="pilot_sb_"
+            ) as f:
                 f.write("#!/bin/bash\nset -e\n" + code)
                 script_path = f.name
         except (PermissionError, OSError) as exc:
@@ -252,8 +258,12 @@ class RestrictedBackend(_SandboxBackend):
             try:
                 os.chmod(script_path, 0o700)
             except PermissionError as exc:
-                logger.warning("⚠️ Failed to adjust execute bits on script %s: %s. Attempting raw execute fallback.", script_path, exc)
-            
+                logger.warning(
+                    "⚠️ Failed to adjust execute bits on script %s: %s. Attempting raw execute fallback.",
+                    script_path,
+                    exc,
+                )
+
             cmd = self._wrap_with_ulimit(["bash", script_path], config)
             return await self._run_proc(cmd, config.timeout, env)
         finally:
@@ -263,7 +273,9 @@ class RestrictedBackend(_SandboxBackend):
     async def _run_powershell(self, code: str, config: SandboxConfig, env: dict[str, str]) -> str:
         script_path = None
         try:
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".ps1", delete=False, encoding="utf-8", prefix="pilot_sb_") as f:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".ps1", delete=False, encoding="utf-8", prefix="pilot_sb_"
+            ) as f:
                 f.write(code)
                 script_path = f.name
         except (PermissionError, OSError) as exc:
@@ -281,7 +293,9 @@ class RestrictedBackend(_SandboxBackend):
     async def _run_node(self, code: str, config: SandboxConfig, env: dict[str, str]) -> str:
         script_path = None
         try:
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".js", delete=False, encoding="utf-8", prefix="pilot_sb_") as f:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".js", delete=False, encoding="utf-8", prefix="pilot_sb_"
+            ) as f:
                 f.write(code)
                 script_path = f.name
         except (PermissionError, OSError) as exc:
@@ -298,7 +312,9 @@ class RestrictedBackend(_SandboxBackend):
     async def _run_cmd(self, code: str, config: SandboxConfig, env: dict[str, str]) -> str:
         script_path = None
         try:
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".cmd", delete=False, encoding="utf-8", prefix="pilot_sb_") as f:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".cmd", delete=False, encoding="utf-8", prefix="pilot_sb_"
+            ) as f:
                 f.write("@echo off\n" + code)
                 script_path = f.name
         except (PermissionError, OSError) as exc:
