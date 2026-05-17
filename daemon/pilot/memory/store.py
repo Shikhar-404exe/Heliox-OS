@@ -206,10 +206,7 @@ class MemoryStore:
                         results["metadatas"][0],
                         strict=False,
                     ):
-                        parts.append(
-                            f'  - "{doc}" '
-                            f'(result: {meta.get("explanation", "N/A")})'
-                        )
+                        parts.append(f'  - "{doc}" (result: {meta.get("explanation", "N/A")})')
 
             except Exception:
                 logger.debug("ChromaDB query failed", exc_info=True)
@@ -283,9 +280,7 @@ class MemoryStore:
             return {}
 
         async with self._pool.read() as db:
-            cursor = await db.execute(
-                "SELECT key, value FROM user_preferences"
-            )
+            cursor = await db.execute("SELECT key, value FROM user_preferences")
 
             rows = await cursor.fetchall()
 

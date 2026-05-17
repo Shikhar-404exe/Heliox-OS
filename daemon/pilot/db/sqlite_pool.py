@@ -26,9 +26,7 @@ class AsyncSqlitePool:
         self._read_pool_size = read_pool_size
         self._timeout = timeout
 
-        self._read_pool: asyncio.Queue[aiosqlite.Connection] = asyncio.Queue(
-            maxsize=read_pool_size
-        )
+        self._read_pool: asyncio.Queue[aiosqlite.Connection] = asyncio.Queue(maxsize=read_pool_size)
 
         self._write_conn: aiosqlite.Connection | None = None
         self._write_lock = asyncio.Lock()
