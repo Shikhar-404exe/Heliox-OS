@@ -213,9 +213,13 @@ class ActionType(StrEnum):
     EMAIL_SUMMARIZE = "email_summarize"
     EMAIL_REPLY = "email_reply"
 
-    # -- Calendar reconciliation --
-    CALENDAR_FETCH = "calendar_fetch"
-    CALENDAR_RECONCILE = "calendar_reconcile"
+# -- Calendar reconciliation --
+CALENDAR_FETCH = "calendar_fetch"
+CALENDAR_RECONCILE = "calendar_reconcile"
+
+# -- Remote execution (SSH) --
+SSH_COMMAND = "ssh_command"
+SSH_SCRIPT = "ssh_script"
 
 
 class PermissionTier(int, Enum):
@@ -319,6 +323,9 @@ SYSTEM_MODIFY_ACTIONS = {
     ActionType.API_DISCORD,
     # Email agent actions (IMAP fetch is read-only; reply/send require confirmation)
     ActionType.EMAIL_REPLY,
+    # SSH is always a remote system modification surface
+    ActionType.SSH_COMMAND,
+    ActionType.SSH_SCRIPT,
 }
 
 
@@ -671,18 +678,27 @@ class EmailParams(BaseModel):
 class CalendarParams(BaseModel):
     """Parameters for calendar reconciliation actions."""
 
-    # Input: JSON output from a prior EMAIL_FETCH action (contains ICS-bearing emails)
     emails_json: str = ""
-
-    # How far ahead (in hours) to look for upcoming events
     lookahead_hours: int = 24
-
-    # What to check
-    check_conflicts: bool = True  # detect overlapping events
-    check_missing_links: bool = True  # detect events with no video-call URL
-
-    # Whether to fire an OS-native notification for each issue found
+    check_conflicts: bool = True
+    check_missing_links: bool = True
     notify: bool = True
+
+
+class SshCommandParams(BaseModel):
+    """Parameters for executing a single command over SSH on a configured host."""
+
+    host: str = ""
+    command: str = ""
+    timeout_seconds: int = 60
+
+
+class SshScriptParams(BaseModel):
+    """Parameters for executing a multi-line bash script over SSH on a configured host."""
+
+    host: str = ""
+    script: str = ""
+    timeout_seconds: int = 300
 
 
 class EmptyParams(BaseModel):
@@ -729,6 +745,8 @@ ActionParameters = (
     | WorkspaceParams
     | EmailParams
     | CalendarParams
+    | SshCommandParams
+    | SshScriptParams
     | EmptyParams
 )
 
