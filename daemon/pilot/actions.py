@@ -213,6 +213,10 @@ class ActionType(StrEnum):
     EMAIL_SUMMARIZE = "email_summarize"
     EMAIL_REPLY = "email_reply"
 
+    # -- Calendar reconciliation --
+    CALENDAR_FETCH = "calendar_fetch"
+    CALENDAR_RECONCILE = "calendar_reconcile"
+
 
 class PermissionTier(int, Enum):
     READ_ONLY = 0
@@ -275,6 +279,9 @@ READ_ONLY_ACTIONS = {
     # Email agent read-only
     ActionType.EMAIL_FETCH,
     ActionType.EMAIL_SUMMARIZE,
+    # Calendar reconciliation (read-only — only reads ICS data)
+    ActionType.CALENDAR_FETCH,
+    ActionType.CALENDAR_RECONCILE,
 }
 
 DESTRUCTIVE_ACTIONS = {
@@ -661,6 +668,23 @@ class EmailParams(BaseModel):
     emails_json: str = ""  # JSON-serialised list of fetched emails to summarise
 
 
+class CalendarParams(BaseModel):
+    """Parameters for calendar reconciliation actions."""
+
+    # Input: JSON output from a prior EMAIL_FETCH action (contains ICS-bearing emails)
+    emails_json: str = ""
+
+    # How far ahead (in hours) to look for upcoming events
+    lookahead_hours: int = 24
+
+    # What to check
+    check_conflicts: bool = True      # detect overlapping events
+    check_missing_links: bool = True  # detect events with no video-call URL
+
+    # Whether to fire an OS-native notification for each issue found
+    notify: bool = True
+
+
 class EmptyParams(BaseModel):
     """For actions that need no parameters."""
 
@@ -704,6 +728,7 @@ ActionParameters = (
     | ApiRequestParams
     | WorkspaceParams
     | EmailParams
+    | CalendarParams
     | EmptyParams
 )
 
