@@ -213,6 +213,7 @@ class ActionType(StrEnum):
     EMAIL_SUMMARIZE = "email_summarize"
     EMAIL_REPLY = "email_reply"
 
+
 # -- Calendar reconciliation --
 CALENDAR_FETCH = "calendar_fetch"
 CALENDAR_RECONCILE = "calendar_reconcile"
