@@ -586,8 +586,8 @@ def _send_os_notification(title: str, body: str) -> None:
             subprocess.run(["osascript", "-e", script], timeout=5, check=False)
         elif system == "Windows":
             # Windows Forms balloon tip — no extra packages required
-            safe_title = title.replace("'", "'").replace('"', '"')
-            safe_body = body.replace("'", "'").replace('"', '"')
+            safe_title = title.replace("'", "''")
+            safe_body = body.replace("'", "''")
             ps = (
                 "Add-Type -AssemblyName System.Windows.Forms; "
                 "$n = New-Object System.Windows.Forms.NotifyIcon; "
