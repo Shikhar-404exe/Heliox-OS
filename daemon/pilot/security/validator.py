@@ -18,6 +18,7 @@ from pilot.actions import (
     DBusParams,
     DownloadParams,
     FileParams,
+    GitResolveParams,
     GnomeSettingParams,
     NotifyParams,
     OpenApplicationParams,
@@ -158,6 +159,7 @@ NO_TARGET_REQUIRED = {
     # SSH remote exec is parameter-driven (host alias)
     ActionType.SSH_COMMAND,
     ActionType.SSH_SCRIPT,
+    ActionType.GIT_RESOLVE,
     ActionType.WASM_CALL,
 }
 
@@ -212,6 +214,9 @@ class ActionValidator:
             self._sanitizer.validate_path(params.path, idx)
             if params.destination:
                 self._sanitizer.validate_path(params.destination, idx)
+
+        elif isinstance(params, GitResolveParams):
+            self._sanitizer.validate_path(params.path, idx)
 
         elif isinstance(params, PackageParams):
             self._sanitizer.validate_package_name(params.name, idx)
@@ -274,7 +279,7 @@ class ActionValidator:
     def _validate_restrictions(self, action: Action, idx: int) -> None:
         restrictions = self._config.restrictions
 
-        if isinstance(action.parameters, FileParams):
+        if isinstance(action.parameters, (FileParams, GitResolveParams)):
             path_str = action.parameters.path
             for protected in restrictions.protected_folders:
                 if path_str.startswith(protected):
